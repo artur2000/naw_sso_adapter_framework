@@ -1,9 +1,9 @@
 <?php
 /**
  * Created by IntelliJ IDEA.
- * User: Artek
- * Date: 09.11.2016
- * Time: 16:33
+ * 
+ *  (c) Q3i GmbH, Düsseldorf, Germany
+ *  http://www.q3i.de
  */
 
 namespace Q3i\NawSso\EventListener;

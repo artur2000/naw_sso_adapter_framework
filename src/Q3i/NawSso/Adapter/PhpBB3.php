@@ -7,18 +7,20 @@ use Q3i\NawSso\Exception\UsernameTakenException;
 
 /**
  * Created by IntelliJ IDEA.
- * User: artur
- * Date: 11.10.16
- * Time: 11:08
+ * 
+ *  (c) net&works GmbH, Hannover, Germany
+ *  http://www.single-signon.com
+ *  (c) Q3i GmbH, Düsseldorf, Germany
+ *  http://www.q3i.de
  */
 class PhpBB3 extends AbstractAdapter
 {
 
     /**
-     * @param $newUserId
-     * @param $accessDefinition
+     * @param int $newUserId
+     * @param array $accessDefinition
      */
-    function initUser($newUserId, $accessDefinition)
+    protected function initUser($newUserId, array $accessDefinition)
     {
 
         $forumsToset = $accessDefinition['forums'];
@@ -170,12 +172,12 @@ class PhpBB3 extends AbstractAdapter
     }
 
     /**
-     * @param $sso_userdata
-     * @param $accessDefinition
+     * @param array $sso_userdata
+     * @param array $accessDefinition
      * @return array
      * @throws AdapterException
      */
-    function process($sso_userdata, $accessDefinition) {
+    function process(array $sso_userdata, array $accessDefinition) {
 
         // check if the given $User_Name exists in the DB
         $localUserData = $this->checkLocalUser($sso_userdata);

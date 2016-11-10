@@ -1,13 +1,13 @@
 <?php
+/**
+ * Created by IntelliJ IDEA.
+ *
+ *  (c) Q3i GmbH, Düsseldorf, Germany
+ *  http://www.q3i.de
+ */
 
 namespace Q3i\NawSso\Exception;
 
-/**
- * Created by IntelliJ IDEA.
- * User: artur
- * Date: 11.10.16
- * Time: 11:49
- */
 class AdapterException extends \Exception implements AdapterExceptionInterface
 {
 

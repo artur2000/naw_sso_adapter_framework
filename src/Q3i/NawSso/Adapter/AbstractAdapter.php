@@ -1,9 +1,9 @@
 <?php
 /**
  * Created by IntelliJ IDEA.
- * User: artur
- * Date: 11.10.16
- * Time: 14:05
+ * 
+ *  (c) Q3i GmbH, Düsseldorf, Germany
+ *  http://www.q3i.de
  */
 
 namespace Q3i\NawSso\Adapter;
@@ -118,14 +118,6 @@ abstract class AbstractAdapter
     }
 
     /**
-     * Initialize newly created user to a full featured
-     * user of the target system
-     * @param $newUserId
-     * @param $usergroup
-     */
-    abstract public function initUser($newUserId, $usergroup);
-
-    /**
      * process the userdata string and return an associative array
      * @param string $sso_userdata: the data from fe_users (pipe-separated)
      * @return array $sso_userdata: the userdata
@@ -151,12 +143,20 @@ abstract class AbstractAdapter
 
     /**
      * Start processing
-     * @param $sso_userdata
-     * @param $sso_groups
+     * @param array $sso_userdata
+     * @param array $accessDefinition
      * @return array
      * @throws \AdapterException
      */
-    abstract public function process($sso_userdata, $sso_groups);
+    abstract public function process(array $sso_userdata, array $accessDefinition);
+
+    /**
+     * Initialize newly created user to a full featured
+     * user of the target system
+     * @param int $newUserId
+     * @param array $accessDefinition
+     */
+    abstract protected function initUser($newUserId, array $accessDefinition);
 
     /**
      * @param $newUsername
