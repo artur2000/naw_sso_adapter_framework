@@ -13,7 +13,7 @@
 *  http://www.q3i.de
 */
 
-require('vendors/artur2000/naw_sso_adapter_framwork/autoload.php');
+require('vendor/autoload.php');
 
 use Q3i\NawSso\Exception\AdapterExceptionInterface;
 use Q3i\NawSso\Exception\AdapterException;
