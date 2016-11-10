@@ -17,7 +17,7 @@ Register the package repository in your composer.json.
 			"type": "package",
 			"package": {
 				"name": "artur2000/naw-sso-adapter-framework",
-				"version": "1.0.0",
+				"version": "dev-master",
 				"source": {
 					"url": "git://github.com/artur2000/naw_sso_adapter_framework",
 					"type": "git",
@@ -35,7 +35,7 @@ Register the package repository in your composer.json.
 
 Require the package
 ```
-composer require artur2000/naw-sso-adapter-framework
+composer require artur2000/naw-sso-adapter-framework:dev-master
 ```
 
 Now you can prepare your adapter bootstrap file simmilar to the example adapter in adapters/phpbb3.php.
