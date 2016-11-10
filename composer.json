@@ -1,0 +1,8 @@
+{
+  "name": "artur2000/naw-sso-adapter-framework",
+  "autoload": {
+    "psr-0" : {
+      "Q3i\\NawSso" : "src"
+    }
+  }
+}
