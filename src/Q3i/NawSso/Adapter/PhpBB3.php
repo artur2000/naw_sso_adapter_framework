@@ -53,7 +53,7 @@ class PhpBB3 extends AbstractAdapter
         $sso_userdata = split("\|", $sso_userdata);
         for ($i = 0; $i < count($sso_userdata); $i++) {
             $sso_userdata[$i] = split("=", $sso_userdata[$i]);
-            $data[$sso_userdata[$i][0]] = $sso_userdata[$i][1];
+            $data[array_shift($sso_userdata[$i])] = implode('=', $sso_userdata[$i]);
         }
         unset ($sso_userdata);
         $sso_userdata = $data;
@@ -603,7 +603,11 @@ class PhpBB3 extends AbstractAdapter
         $return_val += array("redirecturl" => $this->getVariable('sso_url'));
         // pass session data to the SSO-Agent
 
-        $return_val["redirecturl"] .= "?sid=" . $data['session_id'];
+        if (strstr($return_val["redirecturl"], '?')) {
+            $return_val["redirecturl"] .= "&sid=" . $data['session_id'];
+        } else {
+            $return_val["redirecturl"] .= "?sid=" . $data['session_id'];
+        }
 
         return $return_val;
 

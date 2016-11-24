@@ -107,6 +107,10 @@ function sso($User_Name, $ip, $agent, $sso_url, $sso_version = "", $sso_action =
         $allowedGroups = array('Intranet', 'Mitarbeiterintranet');
         $accessDefinition = $adapter->parseIncomingGroupData($sso_userdata, $allowedGroups, $groupMap);
 
+        // pre process
+        $adapter->preProcess($sso_userdata);
+
+        // process
         return $adapter->process($sso_userdata, $accessDefinition);
 
     } catch (AdapterExceptionInterface $ae) {

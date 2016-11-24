@@ -118,6 +118,19 @@ abstract class AbstractAdapter
     }
 
     /**
+     * @param array $sso_userdata
+     */
+    public function preProcess(array $sso_userdata) {
+
+        // force redirect to a certain page after successful authentication
+        if ($sso_userdata['return']) {
+            $sso_userdata['return'] = str_replace('&amp;', '&', $sso_userdata['return']);
+            $this->setVariable('sso_url', $sso_userdata['return']);
+        }
+
+    }
+
+    /**
      * process the userdata string and return an associative array
      * @param string $sso_userdata: the data from fe_users (pipe-separated)
      * @return array $sso_userdata: the userdata
