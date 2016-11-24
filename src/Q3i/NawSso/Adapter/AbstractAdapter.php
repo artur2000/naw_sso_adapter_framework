@@ -124,7 +124,7 @@ abstract class AbstractAdapter
 
         // force redirect to a certain page after successful authentication
         if ($sso_userdata['return']) {
-            $sso_userdata['return'] = str_replace('&amp;', '&', $sso_userdata['return']);
+            $sso_userdata['return'] = str_replace('&amp;', '&', base64_decode($sso_userdata['return']));
             $this->setVariable('sso_url', $sso_userdata['return']);
         }
 
