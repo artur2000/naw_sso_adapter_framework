@@ -99,7 +99,7 @@ class PhpBB3 extends AbstractAdapter
         $email = strtolower(trim($sso_userdata['email']));
 
         // check for typ3-identifier match (case insensitive)
-        $sql = "SELECT user_id, q3i_typo3_username, username, user_password FROM " . USERS_TABLE . " 
+        $sql = "SELECT user_id, q3i_typo3_username, username, user_password, user_sig FROM " . USERS_TABLE . " 
             WHERE q3i_typo3_username COLLATE UTF8_GENERAL_CI = '{$remoteIdentifier}'";
         if ($result = $this->dbHandle->sql_query($sql)) {
             $rows = $this->dbHandle->sql_fetchrowset($result);
@@ -114,7 +114,7 @@ class PhpBB3 extends AbstractAdapter
 
         // no user with typo3-identifier match found
         // try fallback with email match (case insensitive)
-        $sql = "SELECT user_id, q3i_typo3_username, username, user_password FROM " . USERS_TABLE . " 
+        $sql = "SELECT user_id, q3i_typo3_username, username, user_password, user_sig FROM " . USERS_TABLE . " 
             WHERE user_email COLLATE UTF8_GENERAL_CI = '{$email}'";
         if ($result = $this->dbHandle->sql_query($sql)) {
             $rows = $this->dbHandle->sql_fetchrowset($result);
@@ -266,6 +266,26 @@ class PhpBB3 extends AbstractAdapter
     }
 
     /**
+     * Create/Modify user info signature
+     * @param $sso_userdata
+     * @param null|array $localUserData
+     * @return string
+     */
+    protected function processUserInfoSignature($sso_userdata, array $localUserData = null) {
+
+        $sig = '';
+        if ($sso_userdata['company']) {
+            $sig .= trim($sso_userdata['company']);
+        }
+        if ($localUserData['user_sig'] > '') {
+            $localUserData['user_sig'] = str_replace($sig, '', $localUserData['user_sig']);
+            $sig .= "\n" . trim($localUserData['user_sig']);
+        }
+        return $sig;
+
+    }
+
+    /**
      * Create new local user
      * @param $sso_userdata
      * @param $accessDefinition
@@ -280,6 +300,7 @@ class PhpBB3 extends AbstractAdapter
         $local_username = $this->ensureUsernameUnique(trim($sso_userdata['name']));
         // username clean
         $local_username_clean = strtolower($local_username);
+        $local_signature = $this->processUserInfoSignature($sso_userdata);
 
         // check if $remoteIdentifier will be unique (case insensitive)
         $sql = "SELECT user_id FROM " . USERS_TABLE . "
@@ -348,7 +369,7 @@ class PhpBB3 extends AbstractAdapter
                '%notallowed%',
                '{$local_email}',
                '',
-               '',
+               '{$local_signature}',
                'de',
                'D M d, Y g:i a',
                1,
@@ -390,6 +411,7 @@ class PhpBB3 extends AbstractAdapter
         $local_username = $this->ensureUsernameUnique(trim($sso_userdata['name']), $localUserData['user_id']);
         // username clean
         $local_username_clean = strtolower($local_username);
+        $local_signature = $this->processUserInfoSignature($sso_userdata, $localUserData);
 
         // check if username was submitted and update if so
         if ($local_username && $localUserData['user_id']) {
@@ -427,6 +449,12 @@ class PhpBB3 extends AbstractAdapter
             }
             // update email
             $sql = "UPDATE " . USERS_TABLE . " SET user_email='{$local_email}' WHERE user_id='{$localUserData['user_id']}'";
+            if (!($result = $this->dbHandle->sql_query($sql))) throw new AdapterException("error updating profile");
+        }
+
+        if ($local_signature) {
+            // update signature
+            $sql = "UPDATE " . USERS_TABLE . " SET user_sig='{$local_signature}' WHERE user_id='{$localUserData['user_id']}'";
             if (!($result = $this->dbHandle->sql_query($sql))) throw new AdapterException("error updating profile");
         }
 
