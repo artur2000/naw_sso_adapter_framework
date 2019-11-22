@@ -23,20 +23,14 @@ class PhpBB3 extends AbstractAdapter
     protected function initUser($newUserId, array $accessDefinition)
     {
 
-        $forumsToset = $accessDefinition['forums'];
-        $accessGroups = $accessDefinition['groups'];
-
-        foreach ($forumsToset as $forum) {
-            $sql = "INSERT INTO phpbb_acl_users (user_id, forum_id, auth_option_id, auth_role_id, auth_setting) 
-                VALUES({$newUserId}, '$forum', 0, 15, 0)";
-            $this->dbHandle->sql_query($sql);
+        $forumsToSet = $accessDefinition['forums'];
+        foreach ($forumsToSet as $forumId) {
+            $this->aclGrantUserForum($newUserId, $forumId, true);
         }
 
-        foreach ($accessGroups as $group) {
-            //add user do Registered users
-            $sql = "INSERT INTO phpbb_user_group(group_id, user_id, group_leader, user_pending) 
-                VALUES($group, $newUserId, 0, 0)";
-            $this->dbHandle->sql_query($sql);
+        $accessGroups = $accessDefinition['groups'];
+        foreach ($accessGroups as $groupId) {
+            $this->aclGrantUserGroup($newUserId, $groupId, true);
         }
 
     }
@@ -50,9 +44,9 @@ class PhpBB3 extends AbstractAdapter
     function processIncomingUserdata($sso_userdata)
     {
         $data = array();
-        $sso_userdata = split("\|", $sso_userdata);
+        $sso_userdata = explode("|", $sso_userdata);
         for ($i = 0; $i < count($sso_userdata); $i++) {
-            $sso_userdata[$i] = split("=", $sso_userdata[$i]);
+            $sso_userdata[$i] = explode("=", $sso_userdata[$i]);
             $data[array_shift($sso_userdata[$i])] = implode('=', $sso_userdata[$i]);
         }
         unset ($sso_userdata);
@@ -459,48 +453,58 @@ class PhpBB3 extends AbstractAdapter
         }
 
         // update the usergroups:
-        // add any possible new groups
-        foreach ($accessDefinition['groups'] as $newGroupId) {
-
+        foreach ($accessDefinition['groups'] as $groupId) {
             // for each submitted TYPO3 group check if there's a group in phpBB
-            $sql = "SELECT group_id FROM " . GROUPS_TABLE . " WHERE group_id = '{$newGroupId}'";
+            $sql = "SELECT group_id FROM " . GROUPS_TABLE . " WHERE group_id = '{$groupId}'";
             $result = $this->dbHandle->sql_query($sql);
-            if ($row2 = $this->dbHandle->sql_fetchrow($result)) {
-                // a group was found, check if the user is member
-                $sql = "SELECT * FROM " . USER_GROUP_TABLE . " 
-                    WHERE group_id = '{$row2['group_id']}' AND user_id = '{$localUserData['user_id']}'";
-                $result = $this->dbHandle->sql_query($sql);
-                if (!($row3 = $this->dbHandle->sql_fetchrow($result))) {
-                    // user is not member -> add him to the group
-                    $sql = "INSERT INTO " . USER_GROUP_TABLE . " (group_id,user_id,user_pending)
-                        VALUES ('{$row2['group_id']}','{$localUserData['user_id']}','0')";
-                    if (!($result = $this->dbHandle->sql_query($sql)))
+            if ($row = $this->dbHandle->sql_fetchrow($result)) {
+                if (!$this->aclCheckUserGroup($localUserData['user_id'], $row['group_id'])) {
+                    if (!$this->aclGrantUserGroup($localUserData['user_id'], $row['group_id'], true)) {
                         return array("Error" => "error updating group memberships");
+                    }
                 }
             } else {
-                throw new AdapterException("Group ID {$newGroupId} not found locally");
+                throw new AdapterException("Group ID {$groupId} not found locally");
             }
-
         }
 
-        // remove user from all other groups than the TYPO3 ones
-        // first, get group_id and group_name from the DB
-        $sql = "SELECT " . GROUPS_TABLE . ".group_id, " . GROUPS_TABLE . ".group_name from " . USER_GROUP_TABLE .
-            " LEFT JOIN " . GROUPS_TABLE .
-            " ON " . USER_GROUP_TABLE . ".group_id = " . GROUPS_TABLE . ".group_id
-                where user_id = '{$localUserData['user_id']}' AND " . GROUPS_TABLE . ".group_type != 3";
-
-        $result = $this->dbHandle->sql_query($sql);
-        $is_member = $this->dbHandle->sql_fetchrowset($result);
-        if ($is_member) {
-            foreach ($is_member as $temp) {
-                // if the user is member to this group, but this group wasn't submitted by TYPO3 -> remove user
-                if ($temp['group_id'] > 0 && !in_array($temp['group_id'], $accessDefinition['groups'])) {
-                    $sql = "DELETE FROM " . USER_GROUP_TABLE . " where group_id = '{$temp['group_id']}' AND user_id = '{$localUserData['user_id']}'";
-                    $this->dbHandle->sql_query($sql);
+        // update the user forum acl:
+        foreach ($accessDefinition['forums'] as $forumId) {
+            // for each submitted forum ID check if there's a forum in phpBB
+            $sql = "SELECT forum_id FROM " . FORUMS_TABLE . " WHERE forum_id = '{$forumId}'";
+            $result = $this->dbHandle->sql_query($sql);
+            if ($row = $this->dbHandle->sql_fetchrow($result)) {
+                if (!$this->aclCheckUserForum($localUserData['user_id'], $row['forum_id'])) {
+                    if (!$this->aclGrantUserForum($localUserData['user_id'], $row['forum_id'], true)) {
+                        return array("Error" => "error updating forum access");
+                    }
                 }
+            } else {
+                throw new AdapterException("Forum ID {$forumId} not found locally");
             }
         }
+
+        // clear user permissions cache, PHPBB will recreate it based on the acl and group membership we set above
+        $sql = "UPDATE " . USERS_TABLE . " SET user_permissions = '' WHERE user_id = {$localUserData['user_id']}";
+        $this->dbHandle->sql_query($sql);
+
+//        // remove user from all other groups than the TYPO3 ones
+//        // first, get group_id and group_name from the DB
+//        $sql = "SELECT " . GROUPS_TABLE . ".group_id, " . GROUPS_TABLE . ".group_name from " . USER_GROUP_TABLE .
+//            " LEFT JOIN " . GROUPS_TABLE .
+//            " ON " . USER_GROUP_TABLE . ".group_id = " . GROUPS_TABLE . ".group_id
+//                where user_id = '{$localUserData['user_id']}' AND " . GROUPS_TABLE . ".group_type != 3";
+//
+//        $result = $this->dbHandle->sql_query($sql);
+//        $is_member = $this->dbHandle->sql_fetchrowset($result);
+//        if ($is_member) {
+//            foreach ($is_member as $temp) {
+//                // if the user is member to this group, but this group wasn't submitted by TYPO3 -> remove user
+//                if ($temp['group_id'] > 0 && !in_array($temp['group_id'], $accessDefinition['groups'])) {
+//                    $this->aclGrantUserGroup($localUserData['user_id'], $temp['group_id'], false);
+//                }
+//            }
+//        }
 
     }
 
@@ -639,6 +643,81 @@ class PhpBB3 extends AbstractAdapter
 
         return $return_val;
 
+    }
+
+    /**
+     * Check users group membership
+     * @param $userId
+     * @param $groupId
+     * @return bool
+     */
+    private function aclCheckUserGroup($userId, $groupId) {
+        $sql = "SELECT * FROM " . USER_GROUP_TABLE . " 
+                    WHERE group_id = '{$groupId}' AND user_id = '{$userId}'";
+        $result = $this->dbHandle->sql_query($sql);
+        $row = $this->dbHandle->sql_fetchrow($result);
+        if (!$row) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Add(remove) a user to group
+     * @param $userId
+     * @param $groupId
+     * @param bool $allow
+     * @return bool
+     */
+    private function aclGrantUserGroup($userId, $groupId, $allow=true) {
+        $sql = null;
+        if ($allow) {
+            $sql = "INSERT INTO " . USER_GROUP_TABLE . " (group_id,user_id,user_pending) VALUES ('{$groupId}','{$userId}','0')";
+        } else {
+            $sql = "DELETE FROM " . USER_GROUP_TABLE . " WHERE user_id = '{$userId}' AND group_id = '{$groupId}'";
+        }
+        if (!($result = $this->dbHandle->sql_query($sql))) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Check users group membership
+     * @param $userId
+     * @param $forumId
+     * @return bool
+     */
+    private function aclCheckUserForum($userId, $forumId) {
+        $sql = "SELECT * FROM phpbb_acl_users
+                    WHERE user_id = '{$userId}' AND forum_id = '{$forumId}'";
+        $result = $this->dbHandle->sql_query($sql);
+        $row = $this->dbHandle->sql_fetchrow($result);
+        if (!$row) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Add(remove) a user to group
+     * @param $userId
+     * @param $forumId
+     * @param bool $allow
+     * @return bool
+     */
+    private function aclGrantUserForum($userId, $forumId, $allow=true) {
+        $sql = null;
+        if ($allow) {
+            $sql = "INSERT INTO phpbb_acl_users (user_id, forum_id, auth_option_id, auth_role_id, auth_setting) 
+                VALUES({$userId}, '$forumId', 0, 15, 0)";
+        } else {
+            $sql = "DELETE FROM phpbb_acl_users WHERE user_id = '{$userId}' AND forum_id = '{$forumId}'";
+        }
+        if (!($result = $this->dbHandle->sql_query($sql))) {
+            return false;
+        }
+        return true;
     }
 
 }
